@@ -509,6 +509,20 @@ func TestUsageOutput(t *testing.T) {
 	}
 }
 
+func TestUsageHelpOutput(t *testing.T) {
+	ResetForTesting(DefaultUsage)
+	var buf bytes.Buffer
+	CommandLine.SetHelpOutput(&buf)
+	defer func() { CommandLine.SetHelpOutput(nil) }()
+	defer func(old []string) { os.Args = old }(os.Args)
+	os.Args = []string{"app", "--help"}
+	Parse()
+	const want = "Usage of app:\n"
+	if got := buf.String(); got != want {
+		t.Errorf("output = %q; want %q", got, want)
+	}
+}
+
 func TestGetters(t *testing.T) {
 	expectedName := "flag set"
 	expectedErrorHandling := ContinueOnError

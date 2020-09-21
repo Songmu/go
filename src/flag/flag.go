@@ -338,6 +338,8 @@ type FlagSet struct {
 	args          []string // arguments after flags
 	errorHandling ErrorHandling
 	output        io.Writer // nil means stderr; use Output() accessor
+	errHelp       bool
+	helpOutput    io.Writer
 }
 
 // A Flag represents the state of a flag.
@@ -371,6 +373,15 @@ func (f *FlagSet) Output() io.Writer {
 	return f.output
 }
 
+// SetHelpOutput returns the destination for usage when help flag specified explicitly.
+// Result of f.Output is returned if helpOutput was not set or was set to nil.
+func (f *FlagSet) HelpOutput() io.Writer {
+	if f.helpOutput == nil || !f.errHelp {
+		return f.Output()
+	}
+	return f.helpOutput
+}
+
 // Name returns the name of the flag set.
 func (f *FlagSet) Name() string {
 	return f.name
@@ -385,6 +396,12 @@ func (f *FlagSet) ErrorHandling() ErrorHandling {
 // If output is nil, os.Stderr is used.
 func (f *FlagSet) SetOutput(output io.Writer) {
 	f.output = output
+}
+
+// SetHelpOutput sets the destination for usage when help flag specified explicitly.
+// If output is nil, f.Output is used.
+func (f *FlagSet) SetHelpOutput(output io.Writer) {
+	f.helpOutput = output
 }
 
 // VisitAll visits the flags in lexicographical order, calling fn for each.
@@ -532,7 +549,7 @@ func (f *FlagSet) PrintDefaults() {
 				s += fmt.Sprintf(" (default %v)", flag.DefValue)
 			}
 		}
-		fmt.Fprint(f.Output(), s, "\n")
+		fmt.Fprint(f.HelpOutput(), s, "\n")
 	})
 }
 
@@ -564,9 +581,9 @@ func PrintDefaults() {
 // defaultUsage is the default function to print a usage message.
 func (f *FlagSet) defaultUsage() {
 	if f.name == "" {
-		fmt.Fprintf(f.Output(), "Usage:\n")
+		fmt.Fprintf(f.HelpOutput(), "Usage:\n")
 	} else {
-		fmt.Fprintf(f.Output(), "Usage of %s:\n", f.name)
+		fmt.Fprintf(f.HelpOutput(), "Usage of %s:\n", f.name)
 	}
 	f.PrintDefaults()
 }
@@ -943,6 +960,7 @@ func (f *FlagSet) parseOne() (bool, error) {
 	flag, alreadythere := m[name] // BUG
 	if !alreadythere {
 		if name == "help" || name == "h" { // special case for nice help message.
+			f.errHelp = true
 			f.usage()
 			return false, ErrHelp
 		}
